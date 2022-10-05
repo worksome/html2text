@@ -49,10 +49,16 @@ See the [original blog post](http://journals.jevon.org/users/jevon-phd/entry/198
 
 You can use [Composer](http://getcomposer.org/) to add the [package](https://packagist.org/packages/soundasleep/html2text) to your project:
 
+```shell
+composer require worksome/html2text
+```
+
+or adding it manually to your `composer.json`:
+
 ```json
 {
   "require": {
-    "soundasleep/html2text": "~1.1"
+    "worksome/html2text": "^1.0"
   }
 }
 ```
