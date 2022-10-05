@@ -1,156 +1,56 @@
 <?php
 
-use PHPUnit\Framework\TestCase;
+declare(strict_types=1);
+
+use Worksome\Html2Text\Config;
 use Worksome\Html2Text\Html2Text;
 
-require(__DIR__."/../src/Html2Text.php");
+it('parses', function (string $testFile, Config $config = new Config()) {
+    expect(file_exists(__DIR__ . "/fixtures/{$testFile}.html"))->toBeTrue()
+        ->and(file_exists(__DIR__ . "/fixtures/{$testFile}.txt"))->toBeTrue();
 
-class Html2TextTest extends TestCase
-{
-    function doTest($test, $options = array())
-    {
-        $this->doTestWithResults($test, $test, $options);
-    }
+    $input = file_get_contents(__DIR__ . "/fixtures/{$testFile}.html");
+    $expected = Html2Text::fixNewlines(file_get_contents(__DIR__ . "/fixtures/{$testFile}.txt"));
 
-    function doTestWithResults($test, $result, $options = array())
-    {
-        $this->assertTrue(file_exists(__DIR__."/$test.html"), "File '$test.html' did not exist");
-        $this->assertTrue(file_exists(__DIR__."/$result.txt"), "File '$result.txt' did not exist");
-        $input = file_get_contents(__DIR__."/$test.html");
-        $expected = Html2Text::fixNewlines(file_get_contents(__DIR__."/$result.txt"));
+    $output = Html2Text::convert($input, $config);
 
-        $output = Html2Text::convert($input, $options);
+    expect($output)->toBe($expected);
+})->with([
+    'Basic' => 'basic',
+    'Anchor tags' => 'anchors',
+    'More anchor tags' => 'more-anchors',
+    'Break tag' => 'br',
+    'Break tags' => 'brs',
+    'Tables' => 'table',
+    'Non-breaking spaces (NBSP tag)' => 'nbsp',
+    'Lists' => 'lists',
+    'Pre tags' => 'pre',
+    'New lines' => 'newlines',
+    'Nested Divs' => 'nested-divs',
+    'Blockquotes' => 'blockquotes',
+    'Full email' => 'full-email',
+    'Images' => 'images',
+    'Non-breaking spaces' => 'non-breaking-spaces',
+    'UTF-8' => 'utf8-example',
+    'Windows-1252' => 'windows-1252-example',
+    'DOM Processing' => 'dom-processing',
+    'Empty HTML' => 'empty',
+    'MS Office' => 'msoffice',
+    'MS Office (Huge)' => 'huge-msoffice',
+    'Zero-width non-joiners (ZWNJ tag)' => 'zero-width-non-joiners',
+]);
 
-        if ($output != $expected) {
-            file_put_contents(__DIR__."/$result.output", $output);
-        }
-        $this->assertEquals($output, $expected);
-    }
+it('parses with drop links', function (string $testFile, Config $config = new Config(dropLinks: true)) {
+    expect(file_exists(__DIR__ . "/fixtures/{$testFile}.html"))->toBeTrue()
+        ->and(file_exists(__DIR__ . "/fixtures/{$testFile}.no-links.txt"))->toBeTrue();
 
-    function testBasic()
-    {
-        $this->doTest("basic");
-    }
+    $input = file_get_contents(__DIR__ . "/fixtures/{$testFile}.html");
+    $expected = Html2Text::fixNewlines(file_get_contents(__DIR__ . "/fixtures/{$testFile}.no-links.txt"));
 
-    function testAnchors()
-    {
-        $this->doTest("anchors");
-    }
+    $output = Html2Text::convert($input, $config);
 
-    function testMoreAnchors()
-    {
-        $this->doTest("more-anchors");
-    }
-
-    function test3()
-    {
-        $this->doTest("test3");
-    }
-
-    function test4()
-    {
-        $this->doTest("test4");
-    }
-
-    function testTable()
-    {
-        $this->doTest("table");
-    }
-
-    function testNbsp()
-    {
-        $this->doTest("nbsp");
-    }
-
-    function testLists()
-    {
-        $this->doTest("lists");
-    }
-
-    function testPre()
-    {
-        $this->doTest("pre");
-    }
-
-    function testNewLines()
-    {
-        $this->doTest("newlines");
-    }
-
-    function testNestedDivs()
-    {
-        $this->doTest("nested-divs");
-    }
-
-    function testBlockQuotes()
-    {
-        $this->doTest("blockquotes");
-    }
-
-    function testFullEmail()
-    {
-        $this->doTest("full_email");
-    }
-
-    function testImages()
-    {
-        $this->doTest("images");
-    }
-
-    function testNonBreakingSpaces()
-    {
-        $this->doTest("non-breaking-spaces");
-    }
-
-    function testUtf8Example()
-    {
-        $this->doTest("utf8-example");
-    }
-
-    function testWindows1252Example()
-    {
-        $this->doTest("windows-1252-example");
-    }
-
-    function testMsoffice()
-    {
-        $this->doTest("msoffice");
-    }
-
-    function testDOMProcessing()
-    {
-        $this->doTest("dom-processing");
-    }
-
-    function testEmpty()
-    {
-        $this->doTest("empty");
-    }
-
-    function testHugeMsoffice()
-    {
-        $this->doTest("huge-msoffice");
-    }
-
-    function testZeroWidthNonJoiners()
-    {
-        $this->doTest("zero-width-non-joiners");
-    }
-
-    function testInvalidOption()
-    {
-        $this->expectException(InvalidArgumentException::class);
-        $this->doTest("basic", array('invalid_option' => true));
-    }
-
-    function testBasicDropLinks()
-    {
-        $this->doTestWithResults("basic", "basic.no-links", ['drop_links' => true]);
-    }
-
-    function testAnchorsDropLinks()
-    {
-        $this->doTestWithResults("anchors", "anchors.no-links", array('drop_links' => true));
-    }
-
-}
+    expect($output)->toBe($expected);
+})->with([
+    'Basic' => 'basic',
+    'Anchor tags' => 'anchors',
+]);
