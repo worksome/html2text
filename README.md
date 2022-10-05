@@ -1,101 +1,66 @@
-![example workflow](https://github.com/soundasleep/html2text/actions/workflows/test.yml/badge.svg) [![Total Downloads](https://poser.pugx.org/soundasleep/html2text/downloads.png)](https://packagist.org/packages/soundasleep/html2text)
-=========
+# Html2Text
 
-html2text is a very simple script that uses DOM methods to convert HTML into a format similar to what would be
-rendered by a browser - perfect for places where you need a quick text representation. For example:
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/worksome/laravel-mfa.svg?style=flat-square)](https://packagist.org/packages/worksome/laravel-mfa)
+[![GitHub Tests Action Status](https://img.shields.io/github/workflow/status/worksome/laravel-mfa/Tests?label=tests)](https://github.com/worksome/laravel-mfa/actions?query=workflow%3Arun-tests+branch%3Amain)
+[![GitHub Code Style Action Status](https://img.shields.io/github/workflow/status/worksome/laravel-mfa/Static%20Analysis?label=code%20style)](https://github.com/worksome/laravel-mfa/actions?query=workflow%3A"Static+Analysis"+branch%3Amain)
+[![Total Downloads](https://img.shields.io/packagist/dt/worksome/laravel-mfa.svg?style=flat-square)](https://packagist.org/packages/worksome/laravel-mfa)
 
-```html
-<html>
-<title>Ignored Title</title>
-<body>
-  <h1>Hello, World!</h1>
+A simple converter from HTML to Plaintext
 
-  <p>This is some e-mail content.
-  Even though it has whitespace and newlines, the e-mail converter
-  will handle it correctly.
+## Installation
 
-  <p>Even mismatched tags.</p>
+You can install the package via composer:
 
-  <div>A div</div>
-  <div>Another div</div>
-  <div>A div<div>within a div</div></div>
-
-  <a href="http://foo.com">A link</a>
-
-</body>
-</html>
+```bash
+composer require worksome/html2text
 ```
 
-Will be converted into:
-
-```text
-Hello, World!
-
-This is some e-mail content. Even though it has whitespace and newlines, the e-mail converter will handle it correctly.
-
-Even mismatched tags.
-
-A div
-Another div
-A div
-within a div
-
-[A link](http://foo.com)
-```
-
-See the [original blog post](http://journals.jevon.org/users/jevon-phd/entry/19818) or the related [StackOverflow answer](http://stackoverflow.com/a/2564472/39531).
-
-## Installing
-
-You can use [Composer](http://getcomposer.org/) to add the [package](https://packagist.org/packages/soundasleep/html2text) to your project:
-
-```json
-{
-  "require": {
-    "soundasleep/html2text": "~1.1"
-  }
-}
-```
-
-And then use it quite simply:
+## Usage
 
 ```php
-$text = \Worksome\Html2Text::convert($html);
+$text = \Worksome\Html2Text\Html2Text::convert($html);
 ```
 
-You can also include the supplied `html2text.php` and use `$text = convert_html_to_text($html);` instead.
+See the [original repository](https://github.com/soundasleep/html2text) for more information.
 
 ### Options
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| **ignore_errors** | `false` | Set to `true` to ignore any XML parsing errors. |
-| **drop_links** | `false` | Set to `true` to not render links as `[http://foo.com](My Link)`, but rather just `My Link`. |
+| Option        | Default | Description                                                                             |
+|---------------|---------|-----------------------------------------------------------------------------------------|
+| **dropLinks** | `false` | Set to `true` to not render links as `My Link` instead of `[https://foo.com](My Link)`. |
 
-Pass along options as a second argument to `convert`, for example:
+Pass along a configuration class as a second argument to `convert`, for example:
 
 ```php
-$options = array(
-  'ignore_errors' => true,
-  // other options go here
+$options = new \Worksome\Html2Text\Config(
+    dropLinks: true
 );
-$text = \Worksome\Html2Text::convert($html, $options);
+
+$text = \Worksome\Html2Text\Html2Text::convert($html, $options);
 ```
 
-## Tests
+## Testing
 
-Some very basic tests are provided in the `tests/` directory. Run them with `composer install && vendor/bin/phpunit`.
+```bash
+composer test
+```
+## Changelog
 
-## Troubleshooting
+Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed recently.
 
-### Class 'DOMDocument' not found
+## Contributing
 
-You need to [install the PHP XML extension](https://github.com/soundasleep/html2text/issues/55) for your PHP version. e.g. `apt-get install php7.1-xml`
+Please see [CONTRIBUTING](.github/CONTRIBUTING.md) for details.
+
+## Security Vulnerabilities
+
+Please review [our security policy](../../security/policy) on how to report security vulnerabilities.
+
+## Credits
+
+- [Owen Voke](https://github.com/owenvoke)
+- [All Contributors](../../contributors)
 
 ## License
 
-`html2text` is [licensed under MIT](LICENSE.md), making it suitable for both Eclipse and GPL projects.
-
-## Other versions
-
-Also see [html2text_ruby](https://github.com/soundasleep/html2text_ruby), a Ruby implementation.
+The MIT License (MIT). Please see [License File](LICENSE.md) for more information.

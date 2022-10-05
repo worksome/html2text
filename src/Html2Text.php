@@ -1,46 +1,25 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Worksome\Html2Text;
+
+use DOMDocument;
+use DOMDocumentType;
+use DOMElement;
+use DOMNode;
+use DOMProcessingInstruction;
+use DOMText;
 
 class Html2Text
 {
-    public static function defaultOptions(): array
+    public static function convert(string $html, Config $config = new Config()): string
     {
-        return array(
-            'drop_links' => false,
-        );
-    }
+        $isOfficeDocument = static::isOfficeDocument($html);
 
-    /**
-     * Tries to convert the given HTML into a plain text format - best suited for
-     * e-mail display, etc.
-     *
-     * <p>In particular, it tries to maintain the following features:
-     * <ul>
-     *   <li>Links are maintained, with the 'href' copied over
-     *   <li>Information in the &lt;head&gt; is lost
-     * </ul>
-     *
-     * @param  string  $html  the input HTML
-     * @return string the HTML converted, as best as possible, to text
-     * @throws Html2TextException if the HTML could not be loaded as a {@link \DOMDocument}
-     */
-    public static function convert(string $html, array $options = []): string
-    {
-        $options = array_merge(static::defaultOptions(), $options);
-
-        // check all options are valid
-        foreach ($options as $key => $value) {
-            if (! in_array($key, array_keys(static::defaultOptions()))) {
-                throw new \InvalidArgumentException("Unknown html2text option '$key'");
-            }
-        }
-
-        $is_office_document = static::isOfficeDocument($html);
-
-        if ($is_office_document) {
+        if ($isOfficeDocument) {
             // remove office namespace
-            $html = str_replace(array("<o:p>", "</o:p>"), "", $html);
+            $html = str_replace(["<o:p>", "</o:p>"], '', $html);
         }
 
         $html = static::fixNewlines($html);
@@ -50,95 +29,76 @@ class Html2Text
 
         $doc = static::getDocument($html);
 
-        $output = static::iterateOverNode($doc, null, false, $is_office_document, $options);
+        $output = static::iterateOverNode($doc, null, false, $isOfficeDocument, $config);
 
         // process output for whitespace/newlines
-        $output = static::processWhitespaceNewlines($output);
-
-        return $output;
+        return static::processWhitespaceNewlines($output);
     }
 
     /**
      * Unify newlines; in particular, \r\n becomes \n, and
      * then \r becomes \n. This means that all newlines (Unix, Windows, Mac)
      * all become \ns.
-     *
-     * @param  string  $text  text with any number of \r, \r\n and \n combinations
-     * @return string the fixed text
      */
-    static function fixNewlines($text)
+    public static function fixNewlines(string $text): string
     {
-        // replace \r\n to \n
+        // Replace \r\n to \n
         $text = str_replace("\r\n", "\n", $text);
-        // remove \rs
-        $text = str_replace("\r", "\n", $text);
 
-        return $text;
+        // Remove \rs
+        return str_replace("\r", "\n", $text);
     }
 
-    static function nbspCodes()
+    /** @return array<string> */
+    public static function nbspCodes(): array
     {
-        return array(
+        return [
             "\xc2\xa0",
             "\u00a0",
-        );
+        ];
     }
 
-    static function zwnjCodes()
+    /** @return array<string> */
+    public static function zwnjCodes(): array
     {
-        return array(
+        return [
             "\xe2\x80\x8c",
             "\u200c",
-        );
+        ];
     }
 
-    /**
-     * Remove leading or trailing spaces and excess empty lines from provided multiline text
-     *
-     * @param  string  $text  multiline text any number of leading or trailing spaces or excess lines
-     * @return string the fixed text
-     */
-    static function processWhitespaceNewlines($text)
+    public static function processWhitespaceNewlines(string $text): string
     {
-
         // remove excess spaces around tabs
-        $text = preg_replace("/ *\t */im", "\t", $text);
+        $text = (string) preg_replace("/ *\t */im", "\t", $text);
 
         // remove leading whitespace
         $text = ltrim($text);
 
         // remove leading spaces on each line
-        $text = preg_replace("/\n[ \t]*/im", "\n", $text);
+        $text = (string) preg_replace("/\n[ \t]*/im", "\n", $text);
 
-        // convert non-breaking spaces to regular spaces to prevent output issues,
-        // do it here so they do NOT get removed with other leading spaces, as they
+        // Convert non-breaking spaces to regular spaces to prevent output issues,
+        // do it here, so they do NOT get removed with other leading spaces, as they
         // are sometimes used for indentation
         $text = static::renderText($text);
 
-        // remove trailing whitespace
+        // Remove trailing whitespace
         $text = rtrim($text);
 
-        // remove trailing spaces on each line
-        $text = preg_replace("/[ \t]*\n/im", "\n", $text);
+        // Remove trailing spaces on each line
+        $text = (string) preg_replace("/[ \t]*\n/im", "\n", $text);
 
-        // unarmor pre blocks
+        // Unarmor pre blocks
         $text = static::fixNewLines($text);
 
-        // remove unnecessary empty lines
-        $text = preg_replace("/\n\n\n*/im", "\n\n", $text);
-
-        return $text;
+        // Remove unnecessary empty lines
+        return (string) preg_replace("/\n\n\n*/im", "\n\n", $text);
     }
 
-    /**
-     * Parse HTML into a DOMDocument
-     *
-     * @param  string  $html  the input HTML
-     * @return \DOMDocument the parsed document tree
-     */
-    static function getDocument($html)
+    public static function getDocument(string $html): DOMDocument
     {
-        $doc = new \DOMDocument();
+        $doc = new DOMDocument();
 
         $html = trim($html);
 
@@ -153,22 +113,19 @@ class Html2Text
             // If we do not do this, PHP will insert a paragraph tag around
             // the first block of text for some reason which can mess up
             // the newlines. See pre.html test for an example.
-            $html = '<body>'.$html.'</body>';
+            $html = '<body>' . $html . '</body>';
         }
 
         $load_result = $doc->loadHTML($html);
 
         if (! $load_result) {
-            throw new Html2TextException("Could not load HTML - badly formed?", $html);
+            throw new Html2TextException('Could not load HTML - badly formed?', $html);
         }
 
         return $doc;
     }
 
-    /**
-     * Can we guess that this HTML is generated by Microsoft Office?
-     */
-    static function isOfficeDocument($html): bool
+    public static function isOfficeDocument(string $html): bool
     {
         return str_contains($html, "urn:schemas-microsoft-com:office");
     }
@@ -181,29 +138,29 @@ class Html2Text
      * This is to match our goal of rendering documents as they would be rendered
      * by a browser.
      */
-    static function renderText($text): array|string
+    public static function renderText(string $text): string
     {
-        $text = str_replace(static::nbspCodes(), " ", $text);
-        return str_replace(static::zwnjCodes(), "", $text);
+        $text = str_replace(static::nbspCodes(), ' ', $text);
+        return str_replace(static::zwnjCodes(), '', $text);
     }
 
-    static function isWhitespace($text)
+    public static function isWhitespace(string $text): bool
     {
         return strlen(trim(static::renderText($text), "\n\r\t ")) === 0;
     }
 
-    static function nextChildName($node)
+    public static function nextChildName(DOMNode $node): ?string
     {
         // get the next child
         $nextNode = $node->nextSibling;
         while ($nextNode != null) {
-            if ($nextNode instanceof \DOMText) {
+            if ($nextNode instanceof DOMText) {
                 if (! static::isWhitespace($nextNode->wholeText)) {
                     break;
                 }
             }
 
-            if ($nextNode instanceof \DOMElement) {
+            if ($nextNode instanceof DOMElement) {
                 break;
             }
 
@@ -211,43 +168,47 @@ class Html2Text
         }
 
         $nextName = null;
-        if (($nextNode instanceof \DOMElement || $nextNode instanceof \DOMText) && $nextNode != null) {
+        if ($nextNode instanceof DOMElement || $nextNode instanceof DOMText) {
             $nextName = strtolower($nextNode->nodeName);
         }
 
         return $nextName;
     }
 
-    static function iterateOverNode($node, $prevName, $in_pre, $is_office_document, $options)
-    {
-        if ($node instanceof \DOMText) {
-            // Replace whitespace characters with a space (equivilant to \s)
-            if ($in_pre) {
-                $text = "\n".trim(static::renderText($node->wholeText), "\n\r\t ")."\n";
+    public static function iterateOverNode(
+        DOMNode $node,
+        string|null $prevName,
+        bool $inPre,
+        bool $isOfficeDocument,
+        Config $config,
+    ): string {
+        if ($node instanceof DOMText) {
+            // Replace whitespace characters with a space (equivalent to \s)
+            if ($inPre) {
+                $text = "\n" . trim(static::renderText($node->wholeText), "\n\r\t ") . "\n";
 
                 // Remove trailing whitespace only
-                $text = preg_replace("/[ \t]*\n/im", "\n", $text);
+                $text = (string) preg_replace("/[ \t]*\n/im", "\n", $text);
 
                 // armor newlines with \r.
                 return str_replace("\n", "\r", $text);
-
             } else {
                 $text = static::renderText($node->wholeText);
-                $text = preg_replace("/[\\t\\n\\f\\r ]+/im", " ", $text);
+                $text = (string) preg_replace("/[\\t\\n\\f\\r ]+/im", " ", $text);
 
                 if (! static::isWhitespace($text) && ($prevName == 'p' || $prevName == 'div')) {
-                    return "\n".$text;
+                    return "\n" . $text;
                 }
+
                 return $text;
             }
         }
 
-        if ($node instanceof \DOMDocumentType || $node instanceof \DOMProcessingInstruction) {
-            // ignore
-            return "";
+        if ($node instanceof DOMDocumentType || $node instanceof DOMProcessingInstruction) {
+            return '';
         }
 
-        /** @var \DOMElement $node */
+        /** @var DOMElement $node */
         if ($node->attributes?->getNamedItem('data-hidden-plaintext') !== null) {
             return '';
         }
@@ -262,7 +223,7 @@ class Html2Text
                 if ($prevName != null) {
                     $prefix = "\n";
                 }
-                return $prefix."---------------------------------------------------------------\n";
+                return $prefix . "---------------------------------------------------------------\n";
 
             case "style":
             case "head":
@@ -298,7 +259,7 @@ class Html2Text
                 // To fix this, for any p element with a className of `MsoNormal` (the standard
                 // classname in any Microsoft export or outlook for a paragraph that behaves
                 // like a line return) we skip the first line returns and set the name to br.
-                if ($is_office_document && $node->getAttribute('class') == 'MsoNormal') {
+                if ($isOfficeDocument && $node->getAttribute('class') == 'MsoNormal') {
                     $output = "";
                     $name = 'br';
                     break;
@@ -331,27 +292,27 @@ class Html2Text
                 break;
         }
 
-        // debug
-        //$output .= "[$name,$nextName]";
-
         if (isset($node->childNodes)) {
-
             $n = $node->childNodes->item(0);
-            $previousSiblingNames = array();
+            $previousSiblingNames = [];
             $previousSiblingName = null;
 
-            $parts = array();
+            $parts = [];
             $trailing_whitespace = 0;
 
             while ($n != null) {
-
-                $text = static::iterateOverNode($n, $previousSiblingName, $in_pre || $name == 'pre',
-                    $is_office_document, $options);
+                $text = static::iterateOverNode(
+                    $n,
+                    $previousSiblingName,
+                    $inPre || $name == 'pre',
+                    $isOfficeDocument,
+                    $config
+                );
 
                 // Pass current node name to next child, as previousSibling does not appear to get populated
-                if ($n instanceof \DOMDocumentType
-                    || $n instanceof \DOMProcessingInstruction
-                    || ($n instanceof \DOMText && static::isWhitespace($text))) {
+                if ($n instanceof DOMDocumentType
+                    || $n instanceof DOMProcessingInstruction
+                    || ($n instanceof DOMText && static::isWhitespace($text))) {
                     // Keep current previousSiblingName, these are invisible
                     $trailing_whitespace++;
                 } else {
@@ -412,7 +373,7 @@ class Html2Text
                 $output = trim($output);
 
                 // remove double [[ ]] s from linking images
-                if (substr($output, 0, 1) == "[" && substr($output, -1) == "]") {
+                if (str_starts_with($output, "[") && str_ends_with($output, "]")) {
                     $output = substr($output, 1, strlen($output) - 2);
 
                     // for linking images, the title of the <a> overrides the title of the <img>
@@ -428,25 +389,22 @@ class Html2Text
 
                 if ($href == null) {
                     // it doesn't link anywhere
-                    if ($node->getAttribute("name") != null) {
-                        if ($options['drop_links']) {
-                            $output = "$output";
-                        } else {
-                            $output = "[$output]";
-                        }
+                    if ($node->getAttribute('name') != null) {
+                        $output = $config->dropLinks ? "$output" : "[$output]";
                     }
                 } else {
-                    if ($href == $output || $href == "mailto:$output" || $href == "http://$output" || $href == "https://$output") {
+                    if (
+                        $href == $output
+                        || $href == "mailto:{$output}"
+                        || $href == "http://{$output}"
+                        || $href == "https://{$output}"
+                    ) {
                         // link to the same address: just use link
                         $output = "$output";
                     } else {
                         // replace it
                         if ($output) {
-                            if ($options['drop_links']) {
-                                $output = "$output";
-                            } else {
-                                $output = "[$output]($href)";
-                            }
+                            $output = $config->dropLinks ? "{$output}" : "[$output]($href)";
                         } else {
                             // empty string
                             $output = "$href";
@@ -469,9 +427,9 @@ class Html2Text
 
             case "img":
                 if ($node->getAttribute("title")) {
-                    $output = "[".$node->getAttribute("title")."]";
+                    $output = "[" . $node->getAttribute("title") . "]";
                 } elseif ($node->getAttribute("alt")) {
-                    $output = "[".$node->getAttribute("alt")."]";
+                    $output = "[" . $node->getAttribute("alt") . "]";
                 } else {
                     $output = "";
                 }
@@ -486,16 +444,16 @@ class Html2Text
                 $output = static::processWhitespaceNewlines($output);
 
                 // add leading newline
-                $output = "\n".$output;
+                $output = "\n" . $output;
 
                 // prepend '> ' at the beginning of all lines
-                $output = preg_replace("/\n/im", "\n> ", $output);
+                $output = (string) preg_replace("/\n/im", "\n> ", $output);
 
                 // replace leading '> >' with '>>'
-                $output = preg_replace("/\n> >/im", "\n>>", $output);
+                $output = (string) preg_replace("/\n> >/im", "\n>>", $output);
 
                 // add another leading newline and trailing newlines
-                $output = "\n".$output."\n\n";
+                $output = "\n" . $output . "\n\n";
                 break;
             default:
                 // do nothing
