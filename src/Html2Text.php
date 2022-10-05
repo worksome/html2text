@@ -256,6 +256,11 @@ class Html2Text {
 			return "";
 		}
 
+		/** @var \DOMElement $node */
+		if ($node->attributes?->getNamedItem('data-hidden-plaintext') !== null) {
+			return '';
+		}
+
 		$name = strtolower($node->nodeName);
 		$nextName = static::nextChildName($node);
 
