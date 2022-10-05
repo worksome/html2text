@@ -15,7 +15,8 @@
     },
     "require-dev": {
         "pestphp/pest": "^1.22.1",
-        "soundasleep/component-tests": "^0.2.1"
+        "soundasleep/component-tests": "^0.2.1",
+        "pestphp/pest-plugin-parallel": "^1.2"
     },
     "scripts": {
         "test:unit": "vendor/bin/pest -p"
