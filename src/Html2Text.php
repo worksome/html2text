@@ -116,6 +116,8 @@ class Html2Text
             $html = '<body>' . $html . '</body>';
         }
 
+        $html = (string) preg_replace('/&(?![a-z]+?;)/mi', '&amp;', $html);
+
         $load_result = $doc->loadHTML($html);
 
         if (! $load_result) {

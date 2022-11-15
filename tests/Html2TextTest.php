@@ -14,12 +14,13 @@ it('parses', function (string $testFile, Config $config = new Config()) {
 
     $output = Html2Text::convert($input, $config);
 
-    expect($output)->toBe($expected);
+    expect(trim($output))->toBe(trim($expected));
 })->with([
     'Basic' => 'basic',
     'Anchor tags' => 'anchors',
     'More anchor tags' => 'more-anchors',
     'Break tag' => 'br',
+    'Ampersand (&)' => 'ampersand',
     'Break tags' => 'brs',
     'Tables' => 'table',
     'Non-breaking spaces (NBSP tag)' => 'nbsp',
