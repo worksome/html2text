@@ -15,9 +15,8 @@
         "symfony/polyfill-mbstring": "^1.27"
     },
     "require-dev": {
-        "pestphp/pest": "^1.22.3",
-        "pestphp/pest-plugin-parallel": "^1.2",
-        "worksome/coding-style": "^2.3"
+        "pestphp/pest": "^2.0",
+        "worksome/coding-style": "^2.5"
     },
     "scripts": {
         "lint": "vendor/bin/ecs --fix --ansi",
