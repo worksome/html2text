@@ -1,8 +1,8 @@
 # Html2Text
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/worksome/html2text.svg?style=flat-square)](https://packagist.org/packages/worksome/html2text)
-[![GitHub Tests Action Status](https://img.shields.io/github/workflow/status/worksome/html2text/Tests?style=flat-square&label=tests)](https://github.com/worksome/html2text/actions?query=workflow%3Arun-tests+branch%3Amain)
-[![GitHub Code Style Action Status](https://img.shields.io/github/workflow/status/worksome/html2text/Static%20Analysis?style=flat-square&label=code%20style)](https://github.com/worksome/html2text/actions?query=workflow%3A"Static+Analysis"+branch%3Amain)
+[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/worksome/html2text/tests.yml?branch=main&style=flat-square&label=tests)](https://github.com/worksome/html2text/actions?query=workflow%3Arun-tests+branch%3Amain)
+[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/worksome/html2text/static.yml?branch=main&style=flat-square&label=code%20style)](https://github.com/worksome/html2text/actions?query=workflow%3A"Static+Analysis"+branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/worksome/html2text.svg?style=flat-square)](https://packagist.org/packages/worksome/html2text)
 
 A simple converter from HTML to Plaintext
