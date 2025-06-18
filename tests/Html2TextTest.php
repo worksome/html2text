@@ -6,15 +6,13 @@ use Worksome\Html2Text\Config;
 use Worksome\Html2Text\Html2Text;
 
 it('parses', function (string $testFile, Config $config = new Config()) {
-    expect(file_exists(__DIR__ . "/fixtures/{$testFile}.html"))->toBeTrue()
-        ->and(file_exists(__DIR__ . "/fixtures/{$testFile}.txt"))->toBeTrue();
+    expect(file_exists(__DIR__ . "/fixtures/{$testFile}.html"))->toBeTrue();
 
     $input = file_get_contents(__DIR__ . "/fixtures/{$testFile}.html");
-    $expected = Html2Text::fixNewlines(file_get_contents(__DIR__ . "/fixtures/{$testFile}.txt"));
 
     $output = Html2Text::convert($input, $config);
 
-    expect(trim($output))->toBe(trim($expected));
+    expect($output)->toMatchSnapshot();
 })->with([
     'Basic' => 'basic',
     'Anchor tags' => 'anchors',
@@ -33,7 +31,6 @@ it('parses', function (string $testFile, Config $config = new Config()) {
     'Images' => 'images',
     'Non-breaking spaces' => 'non-breaking-spaces',
     'UTF-8' => 'utf8-example',
-    'Windows-1252' => 'windows-1252-example',
     'DOM Processing' => 'dom-processing',
     'Empty HTML' => 'empty',
     'MS Office' => 'msoffice',
@@ -42,16 +39,26 @@ it('parses', function (string $testFile, Config $config = new Config()) {
 ]);
 
 it('parses with drop links', function (string $testFile, Config $config = new Config(dropLinks: true)) {
-    expect(file_exists(__DIR__ . "/fixtures/{$testFile}.html"))->toBeTrue()
-        ->and(file_exists(__DIR__ . "/fixtures/{$testFile}.no-links.txt"))->toBeTrue();
+    expect(file_exists(__DIR__ . "/fixtures/{$testFile}.html"))->toBeTrue();
 
     $input = file_get_contents(__DIR__ . "/fixtures/{$testFile}.html");
-    $expected = Html2Text::fixNewlines(file_get_contents(__DIR__ . "/fixtures/{$testFile}.no-links.txt"));
 
     $output = Html2Text::convert($input, $config);
 
-    expect($output)->toBe($expected);
+    expect($output)->toMatchSnapshot();
 })->with([
     'Basic' => 'basic',
     'Anchor tags' => 'anchors',
 ]);
+
+it('parses with "windows-1252" character set', function () {
+    expect(file_exists(__DIR__ . '/fixtures/windows-1252-example.html'))->toBeTrue();
+
+    $input = file_get_contents(__DIR__ . '/fixtures/windows-1252-example.html');
+
+    $config = new Config(characterSet: 'windows-1252');
+
+    $output = Html2Text::convert($input, $config);
+
+    expect($output)->toMatchSnapshot();
+});

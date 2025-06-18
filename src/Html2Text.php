@@ -10,30 +10,26 @@ use DOMElement;
 use DOMNode;
 use DOMProcessingInstruction;
 use DOMText;
-use Symfony\Polyfill\Mbstring\Mbstring;
 
 class Html2Text
 {
     public static function convert(string $html, Config $config = new Config()): string
     {
-        $isOfficeDocument = static::isOfficeDocument($html);
+        $isOfficeDocument = self::isOfficeDocument($html);
 
         if ($isOfficeDocument) {
             // remove office namespace
-            $html = str_replace(["<o:p>", "</o:p>"], '', $html);
+            $html = str_replace(['<o:p>', '</o:p>'], '', $html);
         }
 
-        $html = static::fixNewlines($html);
-        if (mb_detect_encoding($html, 'UTF-8', true)) {
-            $html = Mbstring::mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8');
-        }
+        $html = self::fixNewlines($html);
 
-        $doc = static::getDocument($html);
+        $doc = self::getDocument($html, $config);
 
-        $output = static::iterateOverNode($doc, null, false, $isOfficeDocument, $config);
+        $output = self::iterateOverNode($doc, null, false, $isOfficeDocument, $config);
 
         // process output for whitespace/newlines
-        return static::processWhitespaceNewlines($output);
+        return self::processWhitespaceNewlines($output);
     }
 
     /**
@@ -68,7 +64,7 @@ class Html2Text
         ];
     }
 
-    public static function processWhitespaceNewlines(string $text): string
+    private static function processWhitespaceNewlines(string $text): string
     {
         // remove excess spaces around tabs
         $text = (string) preg_replace("/ *\t */im", "\t", $text);
@@ -82,7 +78,7 @@ class Html2Text
         // Convert non-breaking spaces to regular spaces to prevent output issues,
         // do it here, so they do NOT get removed with other leading spaces, as they
         // are sometimes used for indentation
-        $text = static::renderText($text);
+        $text = self::renderText($text);
 
         // Remove trailing whitespace
         $text = rtrim($text);
@@ -91,22 +87,32 @@ class Html2Text
         $text = (string) preg_replace("/[ \t]*\n/im", "\n", $text);
 
         // Unarmor pre blocks
-        $text = static::fixNewLines($text);
+        $text = self::fixNewLines($text);
 
         // Remove unnecessary empty lines
         return (string) preg_replace("/\n\n\n*/im", "\n\n", $text);
     }
 
-    public static function getDocument(string $html): DOMDocument
+    public static function isOfficeDocument(string $html): bool
     {
-        $doc = new DOMDocument();
+        return str_contains($html, 'urn:schemas-microsoft-com:office');
+    }
+
+    public static function isWhitespace(string $text): bool
+    {
+        return strlen(trim(self::renderText($text), "\n\r\t ")) === 0;
+    }
+
+    private static function getDocument(string $html, Config $config): DOMDocument
+    {
+        $document = new DOMDocument();
 
         $html = trim($html);
 
         if (! $html) {
             // DOMDocument doesn't support empty value and throws an error
             // Return empty document instead
-            return $doc;
+            return new DOMDocument();
         }
 
         if ($html[0] !== '<') {
@@ -119,18 +125,20 @@ class Html2Text
 
         $html = (string) preg_replace('/&(?![a-z]+?;)/mi', '&amp;', $html);
 
-        $load_result = $doc->loadHTML($html);
+        $characterSet = match ($config->characterSet) {
+            'auto' => mb_detect_encoding($html) ?: 'UTF-8',
+            default => $config->characterSet,
+        };
+
+        $header = sprintf('<?xml version="%s" encoding="%s">', $document->xmlVersion ?? '1.0', $characterSet);
+
+        $load_result = $document->loadHTML($header . $html);
 
         if (! $load_result) {
             throw new Html2TextException('Could not load HTML - badly formed?', $html);
         }
 
-        return $doc;
-    }
-
-    public static function isOfficeDocument(string $html): bool
-    {
-        return str_contains($html, "urn:schemas-microsoft-com:office");
+        return $document;
     }
 
     /**
@@ -141,24 +149,20 @@ class Html2Text
      * This is to match our goal of rendering documents as they would be rendered
      * by a browser.
      */
-    public static function renderText(string $text): string
+    private static function renderText(string $text): string
     {
-        $text = str_replace(static::nbspCodes(), ' ', $text);
-        return str_replace(static::zwnjCodes(), '', $text);
+        $text = str_replace(self::nbspCodes(), ' ', $text);
+
+        return str_replace(self::zwnjCodes(), '', $text);
     }
 
-    public static function isWhitespace(string $text): bool
-    {
-        return strlen(trim(static::renderText($text), "\n\r\t ")) === 0;
-    }
-
-    public static function nextChildName(DOMNode $node): ?string
+    public static function nextChildName(DOMNode $node): string|null
     {
         // get the next child
         $nextNode = $node->nextSibling;
         while ($nextNode != null) {
             if ($nextNode instanceof DOMText) {
-                if (! static::isWhitespace($nextNode->wholeText)) {
+                if (! self::isWhitespace($nextNode->wholeText)) {
                     break;
                 }
             }
@@ -178,7 +182,7 @@ class Html2Text
         return $nextName;
     }
 
-    public static function iterateOverNode(
+    private static function iterateOverNode(
         DOMNode $node,
         string|null $prevName,
         bool $inPre,
@@ -188,7 +192,7 @@ class Html2Text
         if ($node instanceof DOMText) {
             // Replace whitespace characters with a space (equivalent to \s)
             if ($inPre) {
-                $text = "\n" . trim(static::renderText($node->wholeText), "\n\r\t ") . "\n";
+                $text = "\n" . trim(self::renderText($node->wholeText), "\n\r\t ") . "\n";
 
                 // Remove trailing whitespace only
                 $text = (string) preg_replace("/[ \t]*\n/im", "\n", $text);
@@ -196,10 +200,10 @@ class Html2Text
                 // armor newlines with \r.
                 return str_replace("\n", "\r", $text);
             } else {
-                $text = static::renderText($node->wholeText);
-                $text = (string) preg_replace("/[\\t\\n\\f\\r ]+/im", " ", $text);
+                $text = self::renderText($node->wholeText);
+                $text = (string) preg_replace('/[\\t\\n\\f\\r ]+/im', ' ', $text);
 
-                if (! static::isWhitespace($text) && ($prevName == 'p' || $prevName == 'div')) {
+                if (! self::isWhitespace($text) && ($prevName == 'p' || $prevName == 'div')) {
                     return "\n" . $text;
                 }
 
@@ -211,51 +215,53 @@ class Html2Text
             return '';
         }
 
-        /** @var DOMElement $node */
         if ($node->attributes?->getNamedItem('data-hidden-plaintext') !== null) {
             return '';
         }
 
         $name = strtolower($node->nodeName);
-        $nextName = static::nextChildName($node);
+        $nextName = self::nextChildName($node);
 
         // start whitespace
         switch ($name) {
-            case "hr":
+            case 'hr':
                 $prefix = '';
                 if ($prevName != null) {
                     $prefix = "\n";
                 }
+
                 return $prefix . "---------------------------------------------------------------\n";
 
-            case "style":
-            case "head":
-            case "title":
-            case "meta":
-            case "script":
+            case 'style':
+            case 'head':
+            case 'title':
+            case 'meta':
+            case 'script':
                 // ignore these tags
-                return "";
+                return '';
 
-            case "h1":
-            case "h2":
-            case "h3":
-            case "h4":
-            case "h5":
-            case "h6":
-            case "ol":
-            case "ul":
-            case "pre":
+            case 'h1':
+            case 'h2':
+            case 'h3':
+            case 'h4':
+            case 'h5':
+            case 'h6':
+            case 'ol':
+            case 'ul':
+            case 'pre':
                 // add two newlines
                 $output = "\n\n";
+
                 break;
 
-            case "td":
-            case "th":
+            case 'td':
+            case 'th':
                 // add tab char to separate table fields
                 $output = "\t";
+
                 break;
 
-            case "p":
+            case 'p':
                 // Microsoft exchange emails often include HTML which, when passed through
                 // html2text, results in lots of double line returns everywhere.
                 //
@@ -263,35 +269,41 @@ class Html2Text
                 // classname in any Microsoft export or outlook for a paragraph that behaves
                 // like a line return) we skip the first line returns and set the name to br.
                 if ($isOfficeDocument && $node->getAttribute('class') == 'MsoNormal') {
-                    $output = "";
+                    $output = '';
                     $name = 'br';
+
                     break;
                 }
 
                 // add two lines
                 $output = "\n\n";
+
                 break;
 
-            case "tr":
+            case 'tr':
                 // add one line
                 $output = "\n";
+
                 break;
 
-            case "div":
-                $output = "";
+            case 'div':
+                $output = '';
                 if ($prevName !== null) {
                     // add one line
                     $output .= "\n";
                 }
+
                 break;
 
-            case "li":
-                $output = "- ";
+            case 'li':
+                $output = '- ';
+
                 break;
 
             default:
                 // print out contents of unknown tags
-                $output = "";
+                $output = '';
+
                 break;
         }
 
@@ -304,7 +316,7 @@ class Html2Text
             $trailing_whitespace = 0;
 
             while ($n != null) {
-                $text = static::iterateOverNode(
+                $text = self::iterateOverNode(
                     $n,
                     $previousSiblingName,
                     $inPre || $name == 'pre',
@@ -315,7 +327,7 @@ class Html2Text
                 // Pass current node name to next child, as previousSibling does not appear to get populated
                 if ($n instanceof DOMDocumentType
                     || $n instanceof DOMProcessingInstruction
-                    || ($n instanceof DOMText && static::isWhitespace($text))) {
+                    || ($n instanceof DOMText && self::isWhitespace($text))) {
                     // Keep current previousSiblingName, these are invisible
                     $trailing_whitespace++;
                 } else {
@@ -349,45 +361,47 @@ class Html2Text
 
         // end whitespace
         switch ($name) {
-            case "h1":
-            case "h2":
-            case "h3":
-            case "h4":
-            case "h5":
-            case "h6":
-            case "pre":
-            case "p":
+            case 'h1':
+            case 'h2':
+            case 'h3':
+            case 'h4':
+            case 'h5':
+            case 'h6':
+            case 'pre':
+            case 'p':
                 // add two lines
                 $output .= "\n\n";
+
                 break;
 
-            case "br":
+            case 'br':
                 // add one line
                 $output .= "\n";
+
                 break;
 
-            case "div":
+            case 'div':
                 break;
 
-            case "a":
+            case 'a':
                 // links are returned in [text](link) format
-                $href = $node->getAttribute("href");
+                $href = $node->getAttribute('href');
 
                 $output = trim($output);
 
                 // remove double [[ ]] s from linking images
-                if (str_starts_with($output, "[") && str_ends_with($output, "]")) {
+                if (str_starts_with($output, '[') && str_ends_with($output, ']')) {
                     $output = substr($output, 1, strlen($output) - 2);
 
                     // for linking images, the title of the <a> overrides the title of the <img>
-                    if ($node->getAttribute("title")) {
-                        $output = $node->getAttribute("title");
+                    if ($node->getAttribute('title')) {
+                        $output = $node->getAttribute('title');
                     }
                 }
 
                 // if there is no link text, but a title attr
-                if (! $output && $node->getAttribute("title")) {
-                    $output = $node->getAttribute("title");
+                if (! $output && $node->getAttribute('title')) {
+                    $output = $node->getAttribute('title');
                 }
 
                 if ($href == null) {
@@ -397,10 +411,10 @@ class Html2Text
                     }
                 } else {
                     if (
-                        $href == $output
-                        || $href == "mailto:{$output}"
-                        || $href == "http://{$output}"
-                        || $href == "https://{$output}"
+                        $href === $output
+                        || $href === "mailto:{$output}"
+                        || $href === "http://{$output}"
+                        || $href === "https://{$output}"
                     ) {
                         // link to the same address: just use link
                         $output = "$output";
@@ -417,34 +431,38 @@ class Html2Text
 
                 // does the next node require additional whitespace?
                 switch ($nextName) {
-                    case "h1":
-                    case "h2":
-                    case "h3":
-                    case "h4":
-                    case "h5":
-                    case "h6":
+                    case 'h1':
+                    case 'h2':
+                    case 'h3':
+                    case 'h4':
+                    case 'h5':
+                    case 'h6':
                         $output .= "\n";
+
                         break;
                 }
+
                 break;
 
-            case "img":
-                if ($node->getAttribute("title")) {
-                    $output = "[" . $node->getAttribute("title") . "]";
-                } elseif ($node->getAttribute("alt")) {
-                    $output = "[" . $node->getAttribute("alt") . "]";
+            case 'img':
+                if ($node->getAttribute('title')) {
+                    $output = '[' . $node->getAttribute('title') . ']';
+                } elseif ($node->getAttribute('alt')) {
+                    $output = '[' . $node->getAttribute('alt') . ']';
                 } else {
-                    $output = "";
+                    $output = '';
                 }
+
                 break;
 
-            case "li":
+            case 'li':
                 $output .= "\n";
+
                 break;
 
-            case "blockquote":
+            case 'blockquote':
                 // process quoted text for whitespace/newlines
-                $output = static::processWhitespaceNewlines($output);
+                $output = self::processWhitespaceNewlines($output);
 
                 // add leading newline
                 $output = "\n" . $output;
@@ -457,6 +475,7 @@ class Html2Text
 
                 // add another leading newline and trailing newlines
                 $output = "\n" . $output . "\n\n";
+
                 break;
             default:
                 // do nothing

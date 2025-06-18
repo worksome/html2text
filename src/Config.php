@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace Worksome\Html2Text;
 
-class Config
+readonly class Config
 {
     public function __construct(
-        public readonly bool $dropLinks = false,
+        public bool $dropLinks = false,
+        public string $characterSet = 'auto',
     ) {
     }
 }
