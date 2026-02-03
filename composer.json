@@ -14,8 +14,8 @@
         "ext-libxml": "*"
     },
     "require-dev": {
-        "pestphp/pest": "^3.8",
-        "worksome/coding-style": "^3.2"
+        "pestphp/pest": "^4.0",
+        "worksome/coding-style": "^3.3"
     },
     "scripts": {
         "lint": "vendor/bin/ecs --fix --ansi",
