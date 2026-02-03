@@ -25,9 +25,10 @@ See the [original repository](https://github.com/soundasleep/html2text) for more
 
 ### Options
 
-| Option        | Default | Description                                                                             |
-|---------------|---------|-----------------------------------------------------------------------------------------|
-| **dropLinks** | `false` | Set to `true` to not render links as `My Link` instead of `[https://foo.com](My Link)`. |
+| Option           | Default  | Description                                                                               |
+|------------------|----------|-------------------------------------------------------------------------------------------|
+| **dropLinks**    | `false`  | Set to `true` to not render links as `My Link` instead of `[https://foo.com](My Link)`.   |
+| **characterSet** | `'auto'` | Set to a specific character set to override the auto-detection with `mb_detect_encoding`. |
 
 Pass along a configuration class as a second argument to `convert`, for example:
 
