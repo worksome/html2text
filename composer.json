@@ -14,7 +14,7 @@
         "ext-libxml": "*"
     },
     "require-dev": {
-        "pestphp/pest": "^4.0",
+        "pestphp/pest": "^5.0",
         "worksome/coding-style": "^6.0"
     },
     "scripts": {
