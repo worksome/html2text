@@ -15,7 +15,7 @@
     },
     "require-dev": {
         "pestphp/pest": "^5.0",
-        "worksome/coding-style": "^6.0"
+        "worksome/coding-style": "^7.0"
     },
     "scripts": {
         "lint": "vendor/bin/ecs --fix --ansi",
