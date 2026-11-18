@@ -10,6 +10,7 @@ use DOMElement;
 use DOMNode;
 use DOMProcessingInstruction;
 use DOMText;
+use ValueError;
 
 class Html2Text
 {
@@ -130,7 +131,13 @@ class Html2Text
             default => $config->characterSet,
         };
 
-        $header = sprintf('<?xml version="%s" encoding="%s">', $document->xmlVersion ?? '1.0', $characterSet);
+        // libxml 2.14+ ignores the encoding in the XML declaration, so the HTML is converted to UTF-8 first.
+        // ASCII is a subset of UTF-8, so it is not converted (non-strict detection can report UTF-8 as ASCII).
+        if (! in_array(strtoupper($characterSet), ['UTF-8', 'ASCII'], true)) {
+            $html = self::convertToUtf8($html, $characterSet);
+        }
+
+        $header = sprintf('<?xml version="%s" encoding="UTF-8">', $document->xmlVersion ?? '1.0');
 
         $load_result = $document->loadHTML($header . $html);
 
@@ -139,6 +146,36 @@ class Html2Text
         }
 
         return $document;
+    }
+
+    /**
+     * Convert HTML to UTF-8, and update any character set declared in `<meta>` tags to match, as older libxml
+     * versions would otherwise decode the converted HTML using the declared character set.
+     *
+     * @throws Html2TextException
+     */
+    private static function convertToUtf8(string $html, string $characterSet): string
+    {
+        try {
+            $converted = mb_convert_encoding($html, 'UTF-8', $characterSet);
+        } catch (ValueError) {
+            // mbstring does not support every character set (e.g. windows-1250), so iconv is used as a fallback.
+            $converted = function_exists('iconv') ? @iconv($characterSet, 'UTF-8', $html) : false;
+        }
+
+        if ($converted === false) {
+            throw new Html2TextException("Could not convert HTML from the [{$characterSet}] character set.", $html);
+        }
+
+        return (string) preg_replace_callback(
+            '/<meta\b[^>]*>/i',
+            fn (array $matches): string => (string) preg_replace(
+                '/(charset\s*=\s*["\']?)[^"\'\s;\/>]+/i',
+                '$1UTF-8',
+                $matches[0],
+            ),
+            $converted,
+        );
     }
 
     /**
