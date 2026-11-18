@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Worksome\Html2Text\Config;
 use Worksome\Html2Text\Html2Text;
+use Worksome\Html2Text\Html2TextException;
 
 it('parses', function (string $testFile, Config $config = new Config()) {
     expect(file_exists(__DIR__ . "/fixtures/{$testFile}.html"))->toBeTrue();
@@ -62,3 +63,38 @@ it('parses with "windows-1252" character set', function () {
 
     expect($output)->toMatchSnapshot();
 });
+
+it('parses with a character set declared in a `meta` tag', function (string $meta) {
+    $input = "<html><head>{$meta}</head><body><p>caf\xe9</p></body></html>";
+
+    $output = Html2Text::convert($input, new Config(characterSet: 'windows-1252'));
+
+    expect($output)->toBe('café');
+})->with([
+    'charset' => '<meta charset="windows-1252">',
+    'http-equiv' => '<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">',
+]);
+
+it('updates the character set declared in `meta` tags when converting to UTF-8', function () {
+    $convert = new ReflectionMethod(Html2Text::class, 'convertToUtf8');
+
+    $output = $convert->invoke(
+        null,
+        "<meta charset='windows-1252'><meta http-equiv=\"Content-Type\" content=\"text/html; charset=windows-1252\"><p>caf\xe9</p>",
+        'windows-1252',
+    );
+
+    expect($output)->toBe(
+        "<meta charset='UTF-8'><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"><p>café</p>",
+    );
+});
+
+it('parses with a character set that mbstring does not support', function () {
+    $output = Html2Text::convert("<p>Za\x9e\xf9</p>", new Config(characterSet: 'windows-1250'));
+
+    expect($output)->toBe('Zažů');
+});
+
+it('throws an exception for an unknown character set', function () {
+    Html2Text::convert('<p>Hello</p>', new Config(characterSet: 'not-a-character-set'));
+})->throws(Html2TextException::class, 'Could not convert HTML from the [not-a-character-set] character set.');
