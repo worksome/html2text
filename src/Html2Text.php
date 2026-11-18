@@ -130,7 +130,13 @@ class Html2Text
             default => $config->characterSet,
         };
 
-        $header = sprintf('<?xml version="%s" encoding="%s">', $document->xmlVersion ?? '1.0', $characterSet);
+        // libxml 2.14+ ignores the encoding in the XML declaration, so the HTML is converted to UTF-8 first.
+        // ASCII is a subset of UTF-8, so it is not converted (non-strict detection can report UTF-8 as ASCII).
+        if (! in_array(strtoupper($characterSet), ['UTF-8', 'ASCII'], true)) {
+            $html = mb_convert_encoding($html, 'UTF-8', $characterSet);
+        }
+
+        $header = sprintf('<?xml version="%s" encoding="UTF-8">', $document->xmlVersion ?? '1.0');
 
         $load_result = $document->loadHTML($header . $html);
 
